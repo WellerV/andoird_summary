@@ -34,3 +34,14 @@
 2. 服务注册：启动服务，通过系统调用在BinderDriver中创建一个代表自己的binder实体，然后通过defaultServiceManager()方法获取到ServiceManager的binder引用，使用这个binder引用通过系统调用发送数据给binderDriver，然后这个binderDriver以内存映射的方式把服务名字和相关信息以及远程服务的binder引用保存在ServiceManager创建的映射里面。
 3. 客户端连接服务：客户端通过defaultServiceManager()方法获取ServiceManager的binder引用，使用这个binder引用通过系统调用发送数据给binderDriver，然后BinderDriver以内存映射的方式发送数据到ServiceManager进程查询对应服务。查询到之后，返回远程服务的Binder实体的代理对象给客户端进程。
 4. 调用服务：通过远程服务的binder引用，以内存映射的方式把数据发送给远程服务从而调用对应的方法。此时客户端进程被挂起，服务进程将结果以内存映射的方式发送给BinderDriver，BinderDriver再通过系统调用将数据返回给客户进程，客户进程恢复，完成调用。
+
+#### activity的启动流程
+1. 角色
+    * ActivityManagerService：处于system_server进程，负责activity的启动和生命周期。使用ApplicationThreadProxy跟应用进程进行远程通信。
+    * ApplicationThread：处于应用进程，负责跟AMS进行交互，运行在binder线程中。通过Handler把AMS传递过来的数据转到ActivityThread进行执行。使用ActivityManagerProxy跟AMS进行远程通信。
+    * ActivityThread：应用的UI线程，完成activity的实际创建和生命周期。
+2. 启动过程
+    1. 应用进程调用startActivity，进而依赖ActivityManagerNative.getDefault获取ActivityManagerProxy将启动新界面的数据通过binder进程间通信发送给AMS。
+    2. AMS收到应用进程的请求数据之后，进行数据解析，检测需要启动的activity是否有在清单文件中注册，创建activity的抽象的映像ActivityRecord并保存在栈中。然后通过ApplicationThreadProxy发送数据到应用进程，启动activity。
+    3. ApplicationThread收到数据之后，通过ActivityThread类里面的Handler类型对象H将数据从binder线程转入ActivityThread线程。根据接收的数据使用反射创建无参activity对象。
+    4. 要实现activity的插件化，就必须绕过AMS的检测，我们通常在清单文件声明注册一个StubActivity，在检测通过之后，Handler将数据转入ActivityThread之后创建activity对象的时候，使用反射替换这个activity对象，并且和返回的binder对象绑定，AMS通过这个binder对象来控制管理activity。
