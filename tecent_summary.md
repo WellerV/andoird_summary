@@ -13,3 +13,6 @@
 11. surface
 11. ui thread 和 renderThread
 11. recycler view 和 listView的对比。
+leack canery没有检查到内存泄漏，怎么样优化。  mat优化。
+decor view
+字符串切分：inputStream一行一行的读取字符，转化成string之后内存可能不够用,也可能造成很多临时变量造成内存抖动。
